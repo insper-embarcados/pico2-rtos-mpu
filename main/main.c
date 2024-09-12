@@ -13,13 +13,13 @@
 #include <Fusion.h>
 
 const int MPU_ADDRESS = 0x68;
-const int I2C_SDA_GPIO = 20;
-const int I2C_SCL_GPIO = 21;
+const int I2C_SDA_GPIO = 4;
+const int I2C_SCL_GPIO = 5;
 
 static void mpu6050_reset() {
     // Two byte reset. First byte register, second byte data
     // There are a load more options to set up the device in different ways that could be added here
-    uint8_t buf[] = {0x6B, 0x80};
+    uint8_t buf[] = {0x6B, 0x00};
     i2c_write_blocking(i2c_default, MPU_ADDRESS, buf, 2, false);
 }
 
@@ -68,13 +68,38 @@ void mpu6050_task(void *p) {
     mpu6050_reset();
     int16_t acceleration[3], gyro[3], temp;
 
+    gpio_init(15);
+    gpio_init(16);
+    gpio_set_dir(15, GPIO_OUT);
+    gpio_set_dir(16, GPIO_IN);
+    gpio_pull_up(16);
+    gpio_put(15,0);
+    int dataArray[90] = {0};
+    int16_t pDataXYZ[3] = {0};
     while(1) {
-        mpu6050_read_raw(acceleration, gyro, &temp);
-        printf("Acc. X = %d, Y = %d, Z = %d\n", acceleration[0], acceleration[1], acceleration[2]);
-        printf("Gyro. X = %d, Y = %d, Z = %d\n", gyro[0], gyro[1], gyro[2]);
-        printf("Temp. = %f\n", (temp / 340.0) + 36.53);
+        // printf("%d,%d, %d,\n", acceleration[0], acceleration[1], acceleration[2]);
+        // printf("Gyro. X = %d, Y = %d, Z = %d\n", gyro[0], gyro[1], gyro[2]);
+        // printf("Temp. = %f\n", (temp / 340.0) + 36.53);
 
-        vTaskDelay(pdMS_TO_TICKS(10));
+        int a = 0;
+        for(int i = 0; i < 30; i++){
+            mpu6050_read_raw(pDataXYZ, gyro, &temp);
+            a = i*3;
+            dataArray[a] = pDataXYZ[0]; 			// x
+            dataArray[a + 1] = pDataXYZ[1]; 	// y
+            dataArray[a + 2] = pDataXYZ[2]; 	// z
+            
+            printf(" %d,", dataArray[a]);
+            printf(" %d,", dataArray[a + 1]);
+            printf(" %d,", dataArray[a + 2]);
+            // HAL_Delay(100);
+            vTaskDelay(pdMS_TO_TICKS(100));
+
+        }
+        printf(" \n");
+        gpio_put(15,0);
+        while(gpio_get(16) == 1);
+        gpio_put(15,1);
     }
 
 
